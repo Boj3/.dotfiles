@@ -39,6 +39,7 @@ return require("lazy").setup({
 		-- comment plugin by tpope.
 		require("tools._commentary"),
 		require("tools._which-key"),
+		require("tools._spectre"),
 	}),
 	load.on_buf_read({
 		-- setup lsps
