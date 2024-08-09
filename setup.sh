@@ -1,7 +1,6 @@
 #!/bin/bash
 git clone https://github.com/Boj3/.dotfiles.git
 rm ~/.bashrc
-cd ~/.dotfiles
 stow alacritty
 stow tmux
 stow bashrc
