@@ -3,56 +3,61 @@ return {
 	ft = { "svelte", "typescript", "javascript", "vue" },
 	dependencies = {
 		"mfussenegger/nvim-dap",
-		-- build debugger from source
 		{
 			"microsoft/vscode-js-debug",
 			version = "1.x",
 			build = "npm i && npm run compile vsDebugServerBundle && rm -rf out && mv dist out",
 		},
+		"williamboman/mason.nvim",
+		"jay-babu/mason-nvim-dap.nvim",
 	},
 	config = function()
+		-- Setup dap-vscode-js for Chrome and Node.js
 		require("dap-vscode-js").setup({
 			debugger_path = vim.fn.stdpath("data") .. "/lazy/vscode-js-debug",
 			adapters = { "pwa-node", "pwa-chrome", "pwa-msedge", "node-terminal", "pwa-extensionHost" },
 		})
 
+		-- Setup Mason and install Firefox adapter
+		require("mason").setup()
+		require("mason-nvim-dap").setup({
+			ensure_installed = { "firefox" },
+		})
+
+		-- Configure dap adapter for Firefox
+		require("dap").adapters.firefox = {
+			type = "executable",
+			command = "node",
+			args = { vim.fn.stdpath("data") .. "/mason/packages/firefox-debug-adapter/dist/adapter.bundle.js" },
+		}
+
+		-- Configure dap for various languages including Chrome and Firefox
 		for _, language in ipairs({ "typescript", "javascript", "svelte" }) do
 			require("dap").configurations[language] = {
-				-- attach to a node process that has been started with
-				-- `--inspect` for longrunning tasks or `--inspect-brk` for short tasks
-				-- npm script -> `node --inspect-brk ./node_modules/.bin/vite dev`
+				-- Node.js configuration
 				{
-					-- use nvim-dap-vscode-js's pwa-node debug adapter
 					type = "pwa-node",
-					-- attach to an already running node process with --inspect flag
-					-- default port: 9222
 					request = "attach",
-					-- allows us to pick the process using a picker
 					processId = require("dap.utils").pick_process,
-					-- name of the debug action you have to select for this config
 					name = "Attach debugger to existing `node --inspect` process",
-					-- for compiled languages like TypeScript or Svelte.js
 					sourceMaps = true,
-					-- resolve source maps in nested locations while ignoring node_modules
 					resolveSourceMapLocations = {
 						"${workspaceFolder}/**",
 						"!**/node_modules/**",
 					},
-					-- path to src in vite based projects (and most other projects as well)
 					cwd = "${workspaceFolder}",
-					-- we don't want to debug code inside node_modules, so skip it!
 					skipFiles = { "${workspaceFolder}/node_modules/**/*.js" },
 				},
+				-- Chrome configuration
 				{
 					type = "pwa-chrome",
 					name = "Launch Chrome to debug client",
 					request = "launch",
-					url = "http://localhost:5173",
+					url = "http://localhost:4200",
 					sourceMaps = true,
 					protocol = "inspector",
 					port = 9222,
 					webRoot = "${workspaceFolder}",
-					-- skip files from vite's hmr
 					skipFiles = { "**/node_modules/**/*", "**/@vite/*", "**/src/client/*", "**/src/*" },
 				},
 				{
@@ -77,17 +82,25 @@ return {
 					protocol = "inspector",
 					skipFiles = { "**/node_modules/**/*" },
 				},
-				-- only if language is javascript, offer this debug action
+				-- Firefox configuration
+				{
+					type = "firefox",
+					name = "Launch Firefox to debug client",
+					request = "launch",
+					url = "http://localhost:5173",
+					webRoot = "${workspaceFolder}",
+					firefoxExecutable = "/usr/bin/firefox", -- Modifiez selon votre système
+					sourceMaps = true,
+					skipFiles = { "**/node_modules/**/*", "**/@vite/*", "**/src/client/*", "**/src/*" },
+				},
+				-- Only for JavaScript: launch the current file in a new Node.js process
 				language == "javascript"
 						and {
-							-- use nvim-dap-vscode-js's pwa-node debug adapter
 							type = "pwa-node",
-							-- launch a new process to attach the debugger to
 							request = "launch",
-							-- name of the debug action you have to select for this config
 							name = "Launch file in new node process",
-							-- launch current file
 							program = "${file}",
+							firefoxExecutable = "/usr/bin/firefox --new-window --detach",
 							cwd = "${workspaceFolder}",
 						}
 					or nil,
